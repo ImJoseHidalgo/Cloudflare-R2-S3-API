@@ -88,7 +88,47 @@ const readFilesFromBucket = async (s3, bucketName) => {
       file.url = `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`;
     });
 
-    console.log(Contents);
+    const buildTree = (arr) => {
+      const tree = [];
+      const treeMap = {};
+
+      arr.forEach((item) => {
+        const keys = item.Key.split("/");
+        let currentLevel = tree;
+        let currentPath = "";
+
+        keys.forEach((key, index) => {
+          currentPath += currentPath === "" ? key : `/${key}`;
+
+          if (!treeMap[currentPath]) {
+            const newNode = { Key: currentPath };
+            currentLevel.push(newNode);
+            treeMap[currentPath] = newNode;
+
+            if (index === keys.length - 1) {
+              // If it's the last segment, add the file details
+              newNode.details = item;
+            } else {
+              // If it's not the last segment, it's a folder
+              newNode.children = [];
+            }
+          }
+
+          currentLevel = treeMap[currentPath].children;
+        });
+      });
+
+      return tree;
+    };
+
+    const result = buildTree(Contents);
+
+    await fs.writeFile(
+      `${bucketName}-content.json`,
+      JSON.stringify(result, null, 2),
+      "utf8"
+    );
+    console.log(`\nFiles list saved to ./${bucketName}-content.json`);
   } catch (error) {
     console.error(`Error reading files from bucket ${bucketName}`, error);
   }
@@ -109,7 +149,9 @@ const main = async () => {
 
     if (index === "1") {
       await readFilesFromBucket(s3, bucketName);
-    } else if (index === "2") {
+      return;
+    }
+    if (index === "2") {
       console.log("\nUPLOAD FILE\n");
       const r2Path = await askQuestion("Enter R2 path: ");
       const { fileContent, fileName } = await readFile();
@@ -120,11 +162,13 @@ const main = async () => {
         "\n[File URL]:",
         `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`
       );
-    } else if (index === "3") {
-      await createBucket(s3, bucketName);
-    } else {
-      console.log("\nInvalid option");
+      return;
     }
+    if (index === "3") {
+      await createBucket(s3, bucketName);
+      return;
+    }
+    console.log("\nInvalid option");
   } catch (error) {
     console.error("An error occurred:", error);
   } finally {
