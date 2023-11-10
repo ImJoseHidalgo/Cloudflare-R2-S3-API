@@ -2,13 +2,14 @@ const askQuestion = async (readline, question) => {
   return await readline.questionAsync(question);
 };
 
-const readFile = async (readline) => {
+const readFile = async (readline, fs) => {
   try {
     const filePath = await askQuestion(
       readline,
       "Enter the full path of the file to upload: "
     );
-    const nameWithoutSpaces = filePath.replace(/\\/g, "");
+    const replaceBy = process.platform === "win32" ? "/" : "";
+    const nameWithoutSpaces = filePath.replace(/\\/g, replaceBy);
     const fileName = nameWithoutSpaces.split("/").pop();
     const fileContent = await fs.readFile(nameWithoutSpaces);
     return { fileContent, fileName };

@@ -105,8 +105,8 @@ const main = async () => {
 
     if (index === "2") {
       console.log("\nUPLOAD FILE\n");
-      const r2Path = await askQuestion("Enter R2 path: ");
-      const { fileContent, fileName } = await readFile(readline);
+      const r2Path = await askQuestion(readline, "Enter R2 path: ");
+      const { fileContent, fileName } = await readFile(readline, fs);
       const name = r2Path + fileName;
       await uploadFile(s3, bucketName, name, fileContent);
       const nameWithoutSpaces = name.replace(/\s/g, "%20");
