@@ -10,6 +10,8 @@ const readline = require("readline-promise").default.createInterface({
   output: process.stdout,
   terminal: true,
 });
+const { askQuestion, readFile, buildTree } = require("./utils");
+
 require("dotenv").config();
 
 const createS3Client = () => {
@@ -21,25 +23,6 @@ const createS3Client = () => {
       secretAccessKey: process.env.SECRET_ACCESS_KEY,
     },
   });
-};
-
-const askQuestion = async (question) => {
-  return await readline.questionAsync(question);
-};
-
-const readFile = async () => {
-  try {
-    const filePath = await askQuestion(
-      "Enter the full path of the file to upload: "
-    );
-    const nameWithoutSpaces = filePath.replace(/\\/g, "");
-    const fileName = nameWithoutSpaces.split("/").pop();
-    const fileContent = await fs.readFile(nameWithoutSpaces);
-    return { fileContent, fileName };
-  } catch (error) {
-    console.error(`Error reading file: ${error.message}`);
-    process.exit(1);
-  }
 };
 
 const createBucket = async (s3, bucketName) => {
@@ -88,39 +71,6 @@ const readFilesFromBucket = async (s3, bucketName) => {
       file.url = `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`;
     });
 
-    const buildTree = (arr) => {
-      const tree = [];
-      const treeMap = {};
-
-      arr.forEach((item) => {
-        const keys = item.Key.split("/");
-        let currentLevel = tree;
-        let currentPath = "";
-
-        keys.forEach((key, index) => {
-          currentPath += currentPath === "" ? key : `/${key}`;
-
-          if (!treeMap[currentPath]) {
-            const newNode = { Key: currentPath };
-            currentLevel.push(newNode);
-            treeMap[currentPath] = newNode;
-
-            if (index === keys.length - 1) {
-              // If it's the last segment, add the file details
-              newNode.details = item;
-            } else {
-              // If it's not the last segment, it's a folder
-              newNode.children = [];
-            }
-          }
-
-          currentLevel = treeMap[currentPath].children;
-        });
-      });
-
-      return tree;
-    };
-
     const result = buildTree(Contents);
 
     await fs.writeFile(
@@ -141,6 +91,7 @@ const main = async () => {
   try {
     const s3 = createS3Client();
     const index = await askQuestion(
+      readline,
       "What do you want to do?\n" +
         options.map((opt, i) => `${i + 1}. ${opt}`).join("\n") +
         "\n\n" +
@@ -151,10 +102,11 @@ const main = async () => {
       await readFilesFromBucket(s3, bucketName);
       return;
     }
+
     if (index === "2") {
       console.log("\nUPLOAD FILE\n");
       const r2Path = await askQuestion("Enter R2 path: ");
-      const { fileContent, fileName } = await readFile();
+      const { fileContent, fileName } = await readFile(readline);
       const name = r2Path + fileName;
       await uploadFile(s3, bucketName, name, fileContent);
       const nameWithoutSpaces = name.replace(/\s/g, "%20");
@@ -164,6 +116,7 @@ const main = async () => {
       );
       return;
     }
+
     if (index === "3") {
       await createBucket(s3, bucketName);
       return;
