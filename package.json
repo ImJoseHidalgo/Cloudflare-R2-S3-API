@@ -2,6 +2,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.321.1",
     "dotenv": "^16.0.3",
+    "node-fetch": "^2.7.0",
     "readline-promise": "^1.0.5"
   }
 }

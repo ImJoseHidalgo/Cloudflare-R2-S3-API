@@ -4,6 +4,7 @@ const {
   PutObjectCommand,
   ListObjectsCommand,
 } = require("@aws-sdk/client-s3");
+const fetch = require("node-fetch");
 const fs = require("fs").promises;
 const readline = require("readline-promise").default.createInterface({
   input: process.stdin,
@@ -72,6 +73,18 @@ const readFilesFromBucket = async (s3, bucketName) => {
     });
 
     const result = buildTree(Contents);
+
+    const response = await fetch(process.env.API_URL, {
+      method: "POST",
+      body: JSON.stringify({ value: result }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + process.env.API_TOKEN,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(response.statusText);
+    }
 
     await fs.writeFile(
       `${bucketName}-content.json`,
