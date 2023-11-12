@@ -74,9 +74,15 @@ const readFilesFromBucket = async (s3, bucketName) => {
 
     const result = buildTree(Contents);
 
+    const sortedResult = result.sort((a, b) => {
+      const numA = parseInt(a.Key.match(/\d+/)[0], 10);
+      const numB = parseInt(b.Key.match(/\d+/)[0], 10);
+      return numA - numB;
+    });
+
     const response = await fetch(process.env.API_URL, {
       method: "POST",
-      body: JSON.stringify({ value: result }),
+      body: JSON.stringify({ value: sortedResult }),
       headers: {
         "Content-Type": "application/json",
         Authorization: "Bearer " + process.env.API_TOKEN,
@@ -88,7 +94,7 @@ const readFilesFromBucket = async (s3, bucketName) => {
 
     await fs.writeFile(
       `${bucketName}-content.json`,
-      JSON.stringify(result, null, 2),
+      JSON.stringify(sortedResult, null, 2),
       "utf8"
     );
     console.log(`\nFiles list saved to ./${bucketName}-content.json`);
