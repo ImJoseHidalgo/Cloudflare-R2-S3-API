@@ -78,7 +78,7 @@ const readFilesFromBucket = async (s3, bucketName) => {
       const numA = parseInt(a.Key.match(/\d+/)[0], 10);
       const numB = parseInt(b.Key.match(/\d+/)[0], 10);
       return numA - numB;
-    });
+    }).slice(1, 60);
 
     const response = await fetch(process.env.API_URL, {
       method: "POST",
