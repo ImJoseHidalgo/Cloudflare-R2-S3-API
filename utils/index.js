@@ -24,7 +24,8 @@ const buildTree = (arr) => {
   const treeMap = {};
 
   arr.forEach((item) => {
-    const keys = item.Key.split("/");
+    if (!item?.Key) return;
+    const keys = item.Key?.split("/");
     let currentLevel = tree;
     let currentPath = "";
 
