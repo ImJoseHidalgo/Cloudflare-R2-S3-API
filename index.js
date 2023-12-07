@@ -12,6 +12,7 @@ const readline = require("readline-promise").default.createInterface({
   terminal: true,
 });
 const { askQuestion, readFile, buildTree } = require("./utils");
+const { arrayOfUnits } = require("./constants");
 
 require("dotenv").config();
 
@@ -62,45 +63,60 @@ const uploadFile = async (s3, bucketName, fileName, fileContent) => {
 
 const readFilesFromBucket = async (s3, bucketName) => {
   console.log(`\nReading files from bucket ${bucketName}`);
-  const command = new ListObjectsCommand({ Bucket: bucketName });
+  let result = [];
 
-  try {
-    const { Contents } = await s3.send(command);
-
-    Contents.forEach((file) => {
-      const nameWithoutSpaces = file.Key.replace(/\s/g, "%20");
-      file.url = `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`;
+  for (let i = 0; i < arrayOfUnits.length; i++) {
+    const command = new ListObjectsCommand({
+      Bucket: bucketName,
+      Prefix: arrayOfUnits[i],
     });
-
-    const result = buildTree(Contents);
-
-    const sortedResult = result.sort((a, b) => {
-      const numA = parseInt(a.Key.match(/\d+/)[0], 10);
-      const numB = parseInt(b.Key.match(/\d+/)[0], 10);
-      return numA - numB;
-    }).slice(1, 60);
-
-    const response = await fetch(process.env.API_URL, {
-      method: "POST",
-      body: JSON.stringify({ value: sortedResult }),
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + process.env.API_TOKEN,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(response.statusText);
+    if (!command) return;
+    try {
+      const { Contents } = await s3.send(command);
+      if (Contents?.length) {
+        Contents?.forEach((file) => {
+          const nameWithoutSpaces = file.Key.replace(/\s/g, "%20");
+          file.url = `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`;
+        });
+        result = [...result, ...Contents];
+      }
+    } catch (error) {
+      console.error(`Error reading files from bucket ${bucketName}`, error);
     }
-
-    await fs.writeFile(
-      `${bucketName}-content.json`,
-      JSON.stringify(sortedResult, null, 2),
-      "utf8"
-    );
-    console.log(`\nFiles list saved to ./${bucketName}-content.json`);
-  } catch (error) {
-    console.error(`Error reading files from bucket ${bucketName}`, error);
   }
+
+  const results = buildTree(result);
+
+  const sortedResult = results.sort((a, b) => {
+    const numA = parseInt(a.Key.match(/\d+/)[0], 10);
+    const numB = parseInt(b.Key.match(/\d+/)[0], 10);
+    return numA - numB;
+  });
+
+  console.log(`\nFiles in bucket:`, sortedResult.length);
+  console.log(`\nUploading to API...`);
+
+  const response = await fetch(process.env.API_URL, {
+    method: "POST",
+    body: JSON.stringify({ value: sortedResult }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + process.env.API_TOKEN,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(response.statusText);
+  }
+
+  await fs.writeFile(
+    `${bucketName}-content.json`,
+    JSON.stringify(sortedResult, null, 2),
+    "utf8"
+  );
+
+  console.log(`\nFiles list saved to ./${bucketName}-content.json`);
+  console.log(`\nUpload to API success!`);
 };
 
 const main = async () => {
