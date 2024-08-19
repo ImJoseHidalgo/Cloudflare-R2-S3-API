@@ -65,16 +65,17 @@ const readFilesFromBucket = async (s3, bucketName) => {
   console.log(`\nReading files from bucket ${bucketName}`);
   let result = [];
 
-  for (let i = 0; i < arrayOfUnits.length; i++) {
+  for (let i = 0; i < 1; i++) {
     const command = new ListObjectsCommand({
       Bucket: bucketName,
-      Prefix: arrayOfUnits[i],
+      // Prefix: arrayOfUnits[i],
     });
     if (!command) return;
     try {
       const { Contents } = await s3.send(command);
       if (Contents?.length) {
         Contents?.forEach((file) => {
+          console.log(file.Key);
           const nameWithoutSpaces = file.Key.replace(/\s/g, "%20");
           file.url = `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`;
         });
@@ -87,36 +88,36 @@ const readFilesFromBucket = async (s3, bucketName) => {
 
   const results = buildTree(result);
 
-  const sortedResult = results.sort((a, b) => {
-    const numA = parseInt(a.Key.match(/\d+/)[0], 10);
-    const numB = parseInt(b.Key.match(/\d+/)[0], 10);
-    return numA - numB;
-  });
+  // const sortedResult = results.sort((a, b) => {
+  //   const numA = parseInt(a.Key.match(/\d+/)[0], 10);
+  //   const numB = parseInt(b.Key.match(/\d+/)[0], 10);
+  //   return numA - numB;
+  // });
 
-  console.log(`\nFiles in bucket:`, sortedResult.length);
-  console.log(`\nUploading to API...`);
+  // console.log(`\nFiles in bucket:`, sortedResult.length);
+  // console.log(`\nUploading to API...`);
 
-  const response = await fetch(process.env.API_URL, {
-    method: "POST",
-    body: JSON.stringify({ value: sortedResult }),
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + process.env.API_TOKEN,
-    },
-  });
+  // const response = await fetch(process.env.API_URL, {
+  //   method: "POST",
+  //   body: JSON.stringify({ value: sortedResult }),
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //     Authorization: "Bearer " + process.env.API_TOKEN,
+  //   },
+  // });
 
-  if (!response.ok) {
-    throw new Error(response.statusText);
-  }
-
+  // if (!response.ok) {
+  //   throw new Error(response.statusText);
+  // }
+  console.log(`\nFiles list:`, result.length);
   await fs.writeFile(
     `${bucketName}-content.json`,
-    JSON.stringify(sortedResult, null, 2),
+    JSON.stringify(result, null, 2),
     "utf8"
   );
 
   console.log(`\nFiles list saved to ./${bucketName}-content.json`);
-  console.log(`\nUpload to API success!`);
+  // console.log(`\nUpload to API success!`);
 };
 
 const main = async () => {
@@ -149,6 +150,7 @@ const main = async () => {
         "\n[File URL]:",
         `${process.env.BUCKET_PUBLIC_URL}${nameWithoutSpaces}`
       );
+      await readFilesFromBucket(s3, bucketName);
       return;
     }
 
